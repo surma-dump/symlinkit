@@ -33,7 +33,6 @@ func main() {
 		flag.PrintDefaults()
 		log.Fatalf("Usage: symlinkit [-f] [-c] [-h] <src directory> <dst directory>\n")
 	}
-	_ = *force
 	srcdir, dstdir := flag.Arg(0), flag.Arg(1)
 	if !(isDir(srcdir) && isDir(dstdir)) {
 		log.Fatalf("Both parameters have to be directories")
@@ -132,10 +131,13 @@ func isDir(path string) bool {
 
 func isFile(path string) bool {
 	fi, e := os.Stat(path)
+	if e != nil {
+		return false
+	}
 	isPipe := (fi.Mode() & os.ModeNamedPipe) != 0
 	isSocket := (fi.Mode() & os.ModeSocket) != 0
 	isSymlink := (fi.Mode() & os.ModeSymlink) != 0
-	return e == nil && !isPipe && !isSocket && !isSymlink
+	return !isPipe && !isSocket && !isSymlink
 }
 
 func check(e error) {
