@@ -48,6 +48,11 @@ func main() {
 func makeSymlinks(srcdir, dstdir string) {
 	l := linker{srcdir, dstdir}
 	filepath.Walk(srcdir, func(path string, f os.FileInfo, e error) error {
+		// Symlinks should be resolved
+		f, e = os.Stat(path)
+		if e != nil {
+			return filepath.SkipDir
+		}
 		if f.IsDir() {
 			if !l.VisitDir(path, f) {
 				return filepath.SkipDir
