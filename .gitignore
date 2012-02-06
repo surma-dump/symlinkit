@@ -1,0 +1,6 @@
+_bin
+*.8
+*.6
+*.5
+symlinkit
+build
