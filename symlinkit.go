@@ -16,30 +16,20 @@ var (
 )
 
 func main() {
-	log.SetPrefix("symlinkit: ")
-	defer func() {
-		if x := recover(); x != nil {
-			e, ok := x.(error)
-			if ok {
-				log.Fatalf("%s\n", e.Error())
-			} else {
-				log.Fatalf("Unknown error\n")
-			}
-		}
-	}()
-
 	flag.Parse()
-	if *help {
+	if *help || flag.NArg() < 2 {
 		flag.PrintDefaults()
-		log.Fatalf("Usage: symlinkit [-f] [-c] [-h] <src directory> <dst directory>\n")
+		log.Fatalf("Usage: symlinkit [-f] [-c] [-h] <src directory...> <dst directory>\n")
 	}
-	srcdir, dstdir := flag.Arg(0), flag.Arg(1)
-	if !(isDir(srcdir) && isDir(dstdir)) {
-		log.Fatalf("Both parameters have to be directories")
+
+	dstdir := appendSeparator(flag.Arg(flag.NArg() - 1))
+	if !isDir(dstdir) {
+		log.Fatalf("Destination %s is not a directory", dstdir)
 	}
-	srcdir = appendSeparator(srcdir)
-	dstdir = appendSeparator(dstdir)
-	makeSymlinks(srcdir, dstdir)
+	for i := 0; i < flag.NArg()-1; i++ {
+		srcdir := appendSeparator(flag.Arg(i))
+		makeSymlinks(srcdir, dstdir)
+	}
 	if *clean {
 		cleanSymlinks(dstdir)
 	}
@@ -93,32 +83,15 @@ func (m linker) VisitFile(path string, f os.FileInfo) {
 }
 
 func cleanSymlinks(path string) {
-	c := cleaner(path)
 	filepath.Walk(path, func(path string, f os.FileInfo, e error) error {
-		if f.IsDir() {
-			if !c.VisitDir(path, f) {
-				return filepath.SkipDir
+		if f.Mode()&os.ModeSymlink != 0 {
+			target, e := os.Readlink(path)
+			if e != nil || (!isFile(target) && !isDir(target)) {
+				os.Remove(path)
 			}
-		} else {
-			c.VisitFile(path, f)
 		}
 		return nil
 	})
-}
-
-type cleaner string
-
-func (cleaner) VisitDir(path string, f os.FileInfo) bool {
-	return true
-}
-
-func (cleaner) VisitFile(path string, f os.FileInfo) {
-	if f.Mode() & os.ModeSymlink != 0 {
-		target, e := os.Readlink(path)
-		if e != nil || (!isFile(target) && !isDir(target)) {
-			os.Remove(path)
-		}
-	}
 }
 
 func appendSeparator(path string) string {
